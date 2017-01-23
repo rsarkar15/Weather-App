@@ -17,9 +17,11 @@ class ViewController: UIViewController, UISearchBarDelegate {
     @IBOutlet weak var degreeLabel: UILabel!
     
     var degree: Int!
-    var conditon: String!
+    var condition: String!
     var imgUrl: String!
     var cityName: String!
+    
+    var cityExist: Bool = true
     
     
     
@@ -30,11 +32,11 @@ class ViewController: UIViewController, UISearchBarDelegate {
         searchBar.delegate = self
     }
     
-    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) { //method gets fired when you press the search bar button
-        <#code#>
-        let urlRequest = URLRequest(url:URL(string:" http://api.apixu.com/v1/current.json?key=35cc2f938f2d409399d195620172301&q=\(searchBar.text!.replacingOccurrences(of: " ", with: "%20"))")!)
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) { //method gets fired when you press the search bar button
         
-        let task = URLSession.shared.dataTask(with: URLRequest) { (data, response, error) in
+        let urlRequest = URLRequest(url:URL(string:"http://api.apixu.com/v1/current.json?key=35cc2f938f2d409399d195620172301&q=\(searchBar.text!.replacingOccurrences(of: " ", with: "%20"))")!)
+        
+        let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
             
             if error == nil {
                 do {
@@ -44,14 +46,41 @@ class ViewController: UIViewController, UISearchBarDelegate {
                         if let temp = current["temp_f"] as? Int {
                             self.degree = temp
                         }
-                        if let conditon = current["conditon"] as? String {
+                        if let condition = current["condition"] as? [String : AnyObject] {
                             self.condition = condition["text"] as! String
-                            self.imgUrl =  condition["icon"] as! String
+                            let icon = condition["icon"] as! String
+                            self.imgUrl = "http:\(icon)"
                         }
                     }//end current
                     
                     if let location = json["location"] as? [String : AnyObject] {
                         self.cityName = location["name"] as! String
+                    }
+                    
+                    if let _ = json["error"] {
+                        self.cityExist = false;
+                    }
+                    
+                    DispatchQueue.main.async {
+                        
+                        if self.cityExist == true {
+                            self.degreeLabel.text = self.degree.description + "°"
+                            self.cityLabel.text = self.cityName
+                            self.conditionLabel.text = self.condition
+                            self.imgView.weatherIcon(from: self.imgUrl!)
+                            self.degreeLabel.isHidden = false
+                            self.conditionLabel.isHidden = false
+                            self.imgView.isHidden = false
+                        
+                        } else {
+                            self.degreeLabel.isHidden = true
+                            self.cityLabel.text = "This city does not exist!"
+                            self.conditionLabel.isHidden = true
+                            
+                            self.imgView.isHidden = true
+                            self.cityExist = true
+                        }
+                        
                     }
                     
                     
@@ -61,8 +90,27 @@ class ViewController: UIViewController, UISearchBarDelegate {
                 }
             }
         }
+        
+        task.resume()
     }
     
 
+}
+
+extension UIImageView {
+    
+    func weatherIcon(from url: String){
+        let urlRequest = URLRequest(url: URL(string: url)!)
+        
+        let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
+            if error == nil {
+                DispatchQueue.main.async {
+                    self.image = UIImage(data: data!)
+                }
+            }
+        }
+        
+        task.resume()
+    }
 }
 
